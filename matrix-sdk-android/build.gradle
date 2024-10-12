@@ -95,10 +95,6 @@ android {
         }
     }
 
-    adbOptions {
-        installOptions "-g"
-//        timeOutInMs 350 * 1000
-    }
 
     compileOptions {
         sourceCompatibility versions.sourceCompat
@@ -133,6 +129,9 @@ android {
         pickFirsts.add("META-INF/LICENSE.md")
         pickFirsts.add("META-INF/LICENSE-notice.md")
         pickFirsts.add("MANIFEST.MF")
+    }
+    installation {
+        installOptions '-g'
     }
 }
 
