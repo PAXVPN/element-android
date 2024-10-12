@@ -196,8 +196,14 @@ class RoomDevToolViewModel @AssistedInject constructor(
 
                 val adapter = MatrixJsonParser.getMoshi()
                         .adapter<JsonDict>(Types.newParameterizedType(Map::class.java, String::class.java, Any::class.java))
-                val json = adapter.fromJson(state.sendEventDraft?.content ?: "")
+                val rawJson = state.sendEventDraft?.content ?: "{}"
+                val jsonMap = adapter.fromJson(rawJson)?.toMutableMap()
                         ?: throw IllegalArgumentException(stringProvider.getString(CommonStrings.dev_tools_error_no_content))
+
+                // Trying to explicitly convert max_lifetime to Long
+                jsonMap["max_lifetime"]?.let {
+                    if (it is Number) jsonMap["max_lifetime"] = it.toLong()
+                }
 
                 val eventType = state.sendEventDraft?.type
                         ?: throw IllegalArgumentException(stringProvider.getString(CommonStrings.dev_tools_error_no_message_type))
@@ -206,16 +212,14 @@ class RoomDevToolViewModel @AssistedInject constructor(
                     room.stateService().sendStateEvent(
                             eventType,
                             state.sendEventDraft.stateKey.orEmpty(),
-                            json
+                            jsonMap
                     )
                 } else {
-                    // can we try to do some validation??
-                    // val validParse = MoshiProvider.providesMoshi().adapter(MessageContent::class.java).fromJson(it.sendEventDraft.content ?: "")
-                    json.toModel<MessageContent>(catchError = false)
+                    jsonMap.toModel<MessageContent>(catchError = false)
                             ?: throw IllegalArgumentException(stringProvider.getString(CommonStrings.dev_tools_error_malformed_event))
                     room.sendService().sendEvent(
                             eventType,
-                            json
+                            jsonMap
                     )
                 }
 
@@ -233,6 +237,7 @@ class RoomDevToolViewModel @AssistedInject constructor(
             }
         }
     }
+
 
     private fun handleBack() = withState {
         when (it.displayMode) {
