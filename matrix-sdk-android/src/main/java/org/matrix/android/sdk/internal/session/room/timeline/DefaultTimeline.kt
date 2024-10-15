@@ -41,6 +41,7 @@ import org.matrix.android.sdk.api.session.room.timeline.TimelineSettings
 import org.matrix.android.sdk.api.settings.LightweightSettingsStorage
 import org.matrix.android.sdk.internal.database.mapper.TimelineEventMapper
 import org.matrix.android.sdk.internal.session.room.membership.LoadRoomMembersTask
+import org.matrix.android.sdk.internal.session.room.peeking.ResolveRoomStateTask
 import org.matrix.android.sdk.internal.session.room.relation.threads.FetchThreadTimelineTask
 import org.matrix.android.sdk.internal.session.room.send.LocalEchoEventFactory
 import org.matrix.android.sdk.internal.session.room.state.StateEventDataSource
@@ -54,8 +55,9 @@ import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+import javax.inject.Inject
 
-internal class DefaultTimeline(
+internal class DefaultTimeline @Inject constructor(
         private val roomId: String,
         private val initialEventId: String?,
         private val realmConfiguration: RealmConfiguration,
@@ -75,6 +77,7 @@ internal class DefaultTimeline(
         threadsAwarenessHandler: ThreadsAwarenessHandler,
         lightweightSettingsStorage: LightweightSettingsStorage,
         eventDecryptor: TimelineEventDecryptor,
+        private val resolveRoomStateTask: ResolveRoomStateTask
 ) : Timeline {
 
     companion object {
@@ -420,6 +423,7 @@ internal class DefaultTimeline(
                 timelineId = timelineID,
                 mode = mode,
                 dependencies = strategyDependencies,
+                resolveRoomStateTask = resolveRoomStateTask,
                 clock = clock,
         )
     }

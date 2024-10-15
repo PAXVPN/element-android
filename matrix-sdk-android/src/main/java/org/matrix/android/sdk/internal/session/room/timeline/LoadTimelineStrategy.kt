@@ -52,6 +52,13 @@ import org.matrix.android.sdk.internal.session.sync.handler.room.ThreadsAwarenes
 import org.matrix.android.sdk.internal.util.time.Clock
 import timber.log.Timber
 import java.util.concurrent.atomic.AtomicReference
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
+import org.matrix.android.sdk.internal.session.room.peeking.ResolveRoomStateTask
+import org.matrix.android.sdk.api.session.events.model.Event
+import javax.inject.Inject
 
 /**
  * This class is responsible for keeping an instance of chunkEntity and timelineChunk according to the strategy.
@@ -61,11 +68,12 @@ import java.util.concurrent.atomic.AtomicReference
  * Once we got a ChunkEntity we wrap it with TimelineChunk class so we dispatch any methods for loading data.
  */
 
-internal class LoadTimelineStrategy constructor(
+internal class LoadTimelineStrategy @Inject constructor(
         private val roomId: String,
         private val timelineId: String,
         private val mode: Mode,
         private val dependencies: Dependencies,
+        private val resolveRoomStateTask: ResolveRoomStateTask,
         clock: Clock,
 ) {
 
@@ -243,14 +251,51 @@ internal class LoadTimelineStrategy constructor(
         return timelineChunk?.getBuiltEvent(eventId, searchInNext = true, searchInPrev = true)
     }
 
+//    fun buildSnapshot(): List<TimelineEvent> {
+//        val events = buildSendingEvents() + timelineChunk?.builtItems(includesNext = true, includesPrev = true).orEmpty()
+//        return if (dependencies.timelineSettings.useLiveSenderInfo) {
+//            events.map(this::applyLiveRoomState)
+//        } else {
+//            events
+//        }
+//    }
+
     fun buildSnapshot(): List<TimelineEvent> {
-        val events = buildSendingEvents() + timelineChunk?.builtItems(includesNext = true, includesPrev = true).orEmpty()
-        return if (dependencies.timelineSettings.useLiveSenderInfo) {
-            events.map(this::applyLiveRoomState)
+        val events = buildSendingEvents() +
+                timelineChunk?.builtItems(includesNext = true, includesPrev = true).orEmpty()
+
+        val maxLifetimeForRoom = runBlocking {
+            getMaxLifetimeFromRoomStateTask(roomId, resolveRoomStateTask)
+        }
+
+        val currentTime = System.currentTimeMillis()
+
+        val filteredEvents = if (maxLifetimeForRoom > 0) {
+            events.filter { event ->
+                val eventAge = currentTime - (event.root.originServerTs ?: 0L)
+                eventAge < maxLifetimeForRoom
+            }
         } else {
             events
         }
+
+        return if (dependencies.timelineSettings.useLiveSenderInfo) {
+            filteredEvents.map(this::applyLiveRoomState)
+        } else {
+            filteredEvents
+        }
     }
+
+    private suspend fun getMaxLifetimeFromRoomStateTask(
+            roomId: String,
+            resolveRoomStateTask: ResolveRoomStateTask
+    ): Long {
+        val stateEvents: List<Event> = resolveRoomStateTask.execute(ResolveRoomStateTask.Params(roomId))
+        val retentionEvent = stateEvents.find { it.type == "m.room.retention" }
+        return (retentionEvent?.content?.get("max_lifetime") as? Number)?.toLong() ?: 0L
+    }
+
+
 
     private fun applyLiveRoomState(event: TimelineEvent): TimelineEvent {
         val updatedState = liveRoomStateListener.getLiveState(event.senderInfo.userId)

@@ -37,6 +37,8 @@ import org.matrix.android.sdk.internal.session.room.state.StateEventDataSource
 import org.matrix.android.sdk.internal.session.sync.handler.room.ReadReceiptHandler
 import org.matrix.android.sdk.internal.session.sync.handler.room.ThreadsAwarenessHandler
 import org.matrix.android.sdk.internal.util.time.Clock
+import org.matrix.android.sdk.internal.session.room.peeking.ResolveRoomStateTask
+
 
 internal class DefaultTimelineService @AssistedInject constructor(
         @Assisted private val roomId: String,
@@ -56,7 +58,8 @@ internal class DefaultTimelineService @AssistedInject constructor(
         private val timelineEventDataSource: TimelineEventDataSource,
         private val clock: Clock,
         private val stateEventDataSource: StateEventDataSource,
-        private val localEchoEventFactory: LocalEchoEventFactory
+        private val localEchoEventFactory: LocalEchoEventFactory,
+        private val resolveRoomStateTask: ResolveRoomStateTask
 ) : TimelineService {
 
     @AssistedFactory
@@ -84,7 +87,8 @@ internal class DefaultTimelineService @AssistedInject constructor(
                 lightweightSettingsStorage = lightweightSettingsStorage,
                 clock = clock,
                 stateEventDataSource = stateEventDataSource,
-                localEchoEventFactory = localEchoEventFactory
+                localEchoEventFactory = localEchoEventFactory,
+                resolveRoomStateTask = resolveRoomStateTask
         )
     }
 
