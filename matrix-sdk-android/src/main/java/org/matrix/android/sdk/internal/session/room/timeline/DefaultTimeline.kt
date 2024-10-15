@@ -164,6 +164,7 @@ internal class DefaultTimeline(
         }
     }
 
+
     override fun dispose() {
         timelineScope.coroutineContext.cancelChildren()
         timelineScope.launch {
@@ -350,6 +351,30 @@ internal class DefaultTimeline(
             }
         }
     }
+
+//    private suspend fun postSnapshot() {
+//        val snapshot = strategy.buildSnapshot()
+//        Timber.v("Post snapshot of ${snapshot.size} events")
+//        val currentTime = System.currentTimeMillis()
+//        val maxLifetimeForRoom = 180000
+//
+//        // Пример фильтрации с maxLifetime
+//        val filteredSnapshot = snapshot.filter { event ->
+//            val eventAge = currentTime - (event.root.originServerTs ?: 0L)
+//            eventAge < maxLifetimeForRoom // где maxLifetimeForRoom определен для комнаты
+//        }
+//
+//        withContext(coroutineDispatchers.main) {
+//            listeners.forEach {
+//                if (initialEventId != null && isFromThreadTimeline && filteredSnapshot.firstOrNull { it.eventId == initialEventId } == null) {
+//                    tryOrNull { it.onTimelineUpdated(arrayListOf()) }
+//                } else {
+//                    tryOrNull { it.onTimelineUpdated(filteredSnapshot) }
+//                }
+//            }
+//        }
+//    }
+
 
     private fun onNewTimelineEvents(eventIds: List<String>) {
         timelineScope.launch(coroutineDispatchers.main) {
