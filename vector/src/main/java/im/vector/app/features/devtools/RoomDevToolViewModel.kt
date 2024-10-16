@@ -163,14 +163,21 @@ class RoomDevToolViewModel @AssistedInject constructor(
 
                 val adapter = MatrixJsonParser.getMoshi()
                         .adapter<JsonDict>(Types.newParameterizedType(Map::class.java, String::class.java, Any::class.java))
-                val json = adapter.fromJson(state.editedContent ?: "")
+                val rawJsonContent = state.editedContent ?: "{}"
+                val jsonMap = adapter.fromJson(rawJsonContent)?.toMutableMap()
                         ?: throw IllegalArgumentException(stringProvider.getString(CommonStrings.dev_tools_error_no_content))
+
+                // Convert max_lifetime to Long if it exists
+                jsonMap["max_lifetime"]?.let {
+                    if (it is Number) jsonMap["max_lifetime"] = it.toLong()
+                }
 
                 room.stateService().sendStateEvent(
                         state.selectedEvent?.type.orEmpty(),
                         state.selectedEvent?.stateKey.orEmpty(),
-                        json
+                        jsonMap
                 )
+
                 _viewEvents.post(DevToolsViewEvents.ShowSnackMessage(stringProvider.getString(CommonStrings.dev_tools_success_state_event)))
                 setState {
                     copy(
@@ -186,6 +193,8 @@ class RoomDevToolViewModel @AssistedInject constructor(
             }
         }
     }
+
+
 
     private fun sendEventContent(state: RoomDevToolViewState, isState: Boolean) {
         setState { copy(modalLoading = Loading()) }
