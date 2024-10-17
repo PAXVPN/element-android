@@ -22,6 +22,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import org.matrix.android.sdk.api.MatrixCoroutineDispatchers
+import org.matrix.android.sdk.api.session.room.RoomService
 import org.matrix.android.sdk.api.session.room.timeline.Timeline
 import org.matrix.android.sdk.api.session.room.timeline.TimelineEvent
 import org.matrix.android.sdk.api.session.room.timeline.TimelineService
@@ -59,7 +60,8 @@ internal class DefaultTimelineService @AssistedInject constructor(
         private val clock: Clock,
         private val stateEventDataSource: StateEventDataSource,
         private val localEchoEventFactory: LocalEchoEventFactory,
-        private val resolveRoomStateTask: ResolveRoomStateTask
+        private val resolveRoomStateTask: ResolveRoomStateTask,
+        private val roomService: RoomService
 ) : TimelineService {
 
     @AssistedFactory
@@ -88,7 +90,8 @@ internal class DefaultTimelineService @AssistedInject constructor(
                 clock = clock,
                 stateEventDataSource = stateEventDataSource,
                 localEchoEventFactory = localEchoEventFactory,
-                resolveRoomStateTask = resolveRoomStateTask
+                resolveRoomStateTask = resolveRoomStateTask,
+                roomService = roomService
         )
     }
 

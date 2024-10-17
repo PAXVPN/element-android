@@ -58,6 +58,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import org.matrix.android.sdk.internal.session.room.peeking.ResolveRoomStateTask
 import org.matrix.android.sdk.api.session.events.model.Event
+import org.matrix.android.sdk.api.session.room.RoomService
 import javax.inject.Inject
 
 /**
@@ -74,6 +75,7 @@ internal class LoadTimelineStrategy @Inject constructor(
         private val mode: Mode,
         private val dependencies: Dependencies,
         private val resolveRoomStateTask: ResolveRoomStateTask,
+        private val roomService: RoomService,
         clock: Clock,
 ) {
 
@@ -260,7 +262,11 @@ internal class LoadTimelineStrategy @Inject constructor(
 //        }
 //    }
 
+
     fun buildSnapshot(): List<TimelineEvent> {
+        val room = roomService.getRoom(roomId)
+        val sendService = room?.sendService()
+
         val events = buildSendingEvents() +
                 timelineChunk?.builtItems(includesNext = true, includesPrev = true).orEmpty()
 
@@ -269,14 +275,27 @@ internal class LoadTimelineStrategy @Inject constructor(
         }
 
         val currentTime = System.currentTimeMillis()
+        val redactedEventIds = mutableSetOf<String>()
+        val filteredEvents = mutableListOf<TimelineEvent>()
 
-        val filteredEvents = if (maxLifetimeForRoom > 0) {
-            events.filter { event ->
-                val eventAge = currentTime - (event.root.originServerTs ?: 0L)
-                eventAge < maxLifetimeForRoom
+        events.forEach { event ->
+            val eventAge = currentTime - (event.root.originServerTs ?: 0L)
+            val isEncrypted = event.root.type == "m.room.encrypted"
+            val isAlreadyRedacted = event.root.unsignedData?.redactedEvent != null
+
+            if (event.root.type == "m.room.redaction" && event.root.redacts != null) {
+                redactedEventIds.add(event.root.redacts)
             }
-        } else {
-            events
+
+
+            if (maxLifetimeForRoom > 0 && sendService != null) {
+                if (eventAge >= maxLifetimeForRoom && isEncrypted && !isAlreadyRedacted && !redactedEventIds.contains(event.root.eventId)) {
+                    sendService.redactEvent(event.root, "Expired due to retention policy.", null, null)
+                    return@forEach
+                }
+            }
+
+            filteredEvents.add(event)
         }
 
         return if (dependencies.timelineSettings.useLiveSenderInfo) {
@@ -286,6 +305,8 @@ internal class LoadTimelineStrategy @Inject constructor(
         }
     }
 
+
+
     private suspend fun getMaxLifetimeFromRoomStateTask(
             roomId: String,
             resolveRoomStateTask: ResolveRoomStateTask
@@ -294,8 +315,6 @@ internal class LoadTimelineStrategy @Inject constructor(
         val retentionEvent = stateEvents.find { it.type == "m.room.retention" }
         return (retentionEvent?.content?.get("max_lifetime") as? Number)?.toLong() ?: 0L
     }
-
-
 
     private fun applyLiveRoomState(event: TimelineEvent): TimelineEvent {
         val updatedState = liveRoomStateListener.getLiveState(event.senderInfo.userId)

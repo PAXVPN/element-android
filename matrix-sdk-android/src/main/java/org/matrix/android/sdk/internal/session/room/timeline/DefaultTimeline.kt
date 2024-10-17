@@ -34,6 +34,8 @@ import kotlinx.coroutines.withContext
 import okhttp3.internal.closeQuietly
 import org.matrix.android.sdk.api.MatrixCoroutineDispatchers
 import org.matrix.android.sdk.api.extensions.tryOrNull
+import org.matrix.android.sdk.api.session.Session
+import org.matrix.android.sdk.api.session.room.RoomService
 import org.matrix.android.sdk.api.session.room.model.Membership
 import org.matrix.android.sdk.api.session.room.timeline.Timeline
 import org.matrix.android.sdk.api.session.room.timeline.TimelineEvent
@@ -77,7 +79,8 @@ internal class DefaultTimeline @Inject constructor(
         threadsAwarenessHandler: ThreadsAwarenessHandler,
         lightweightSettingsStorage: LightweightSettingsStorage,
         eventDecryptor: TimelineEventDecryptor,
-        private val resolveRoomStateTask: ResolveRoomStateTask
+        private val resolveRoomStateTask: ResolveRoomStateTask,
+        private val roomService: RoomService,
 ) : Timeline {
 
     companion object {
@@ -99,6 +102,7 @@ internal class DefaultTimeline @Inject constructor(
 
     private var isFromThreadTimeline = false
     private var rootThreadEventId: String? = null
+
 
     private val strategyDependencies = LoadTimelineStrategy.Dependencies(
             timelineSettings = settings,
@@ -418,6 +422,7 @@ internal class DefaultTimeline @Inject constructor(
     }
 
     private fun buildStrategy(mode: LoadTimelineStrategy.Mode): LoadTimelineStrategy {
+
         return LoadTimelineStrategy(
                 roomId = roomId,
                 timelineId = timelineID,
@@ -425,6 +430,7 @@ internal class DefaultTimeline @Inject constructor(
                 dependencies = strategyDependencies,
                 resolveRoomStateTask = resolveRoomStateTask,
                 clock = clock,
+                roomService = roomService
         )
     }
 
