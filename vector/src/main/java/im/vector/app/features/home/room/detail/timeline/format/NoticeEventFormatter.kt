@@ -892,6 +892,8 @@ class NoticeEventFormatter @Inject constructor(
                         } else {
                             sp.getString(CommonStrings.event_redacted_by_admin_reason)
                         }
+                    } else if (reason == "Expired due to retention policy.") {
+                        " "
                     } else {
                         if (event.isRedactedBySameUser()) {
                             sp.getString(CommonStrings.event_redacted_by_user_reason_with_reason, reason)

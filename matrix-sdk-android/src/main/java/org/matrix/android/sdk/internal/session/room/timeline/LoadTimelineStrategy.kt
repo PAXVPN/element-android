@@ -243,14 +243,22 @@ internal class LoadTimelineStrategy constructor(
         return timelineChunk?.getBuiltEvent(eventId, searchInNext = true, searchInPrev = true)
     }
 
+
     fun buildSnapshot(): List<TimelineEvent> {
         val events = buildSendingEvents() + timelineChunk?.builtItems(includesNext = true, includesPrev = true).orEmpty()
+
+        // Filter events, remove those with redactedEvent not null
+        val filteredEvents = events.filter { event ->
+            event.root.unsignedData?.redactedEvent == null
+        }
+
         return if (dependencies.timelineSettings.useLiveSenderInfo) {
-            events.map(this::applyLiveRoomState)
+            filteredEvents.map(this::applyLiveRoomState)
         } else {
-            events
+            filteredEvents
         }
     }
+
 
     private fun applyLiveRoomState(event: TimelineEvent): TimelineEvent {
         val updatedState = liveRoomStateListener.getLiveState(event.senderInfo.userId)
