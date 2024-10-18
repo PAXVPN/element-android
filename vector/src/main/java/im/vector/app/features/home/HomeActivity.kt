@@ -428,69 +428,73 @@ class HomeActivity :
 
     private fun handleAskPasswordToInitCrossSigning(events: HomeActivityViewEvents.AskPasswordToInitCrossSigning) {
         // We need to ask
-        promptSecurityEvent(
-                uid = PopupAlertManager.UPGRADE_SECURITY_UID,
-                userItem = events.userItem,
-                titleRes = CommonStrings.upgrade_security,
-                descRes = CommonStrings.security_prompt_text,
-        ) {
-            it.navigator.upgradeSessionSecurity(it, true)
-        }
+        events.hashCode()
+//        promptSecurityEvent(
+//                uid = PopupAlertManager.UPGRADE_SECURITY_UID,
+//                userItem = events.userItem,
+//                titleRes = CommonStrings.upgrade_security,
+//                descRes = CommonStrings.security_prompt_text,
+//        ) {
+//            it.navigator.upgradeSessionSecurity(it, true)
+//        }
     }
 
     private fun handleCrossSigningInvalidated(event: HomeActivityViewEvents.OnCrossSignedInvalidated) {
         // We need to ask
-        promptSecurityEvent(
-                uid = PopupAlertManager.VERIFY_SESSION_UID,
-                userItem = event.userItem,
-                titleRes = CommonStrings.crosssigning_verify_this_session,
-                descRes = CommonStrings.confirm_your_identity,
-        ) {
-            // check first if it's not an outdated request?
-            activeSessionHolder.getSafeActiveSession()?.let { session ->
-                session.coroutineScope.launch {
-                    if (!session.cryptoService().crossSigningService().isCrossSigningVerified()) {
-                        withContext(Dispatchers.Main) {
-                            it.navigator.requestSelfSessionVerification(it)
-                        }
-                    }
-                }
-            }
-        }
+        event.hashCode()
+//        promptSecurityEvent(
+//                uid = PopupAlertManager.VERIFY_SESSION_UID,
+//                userItem = event.userItem,
+//                titleRes = CommonStrings.crosssigning_verify_this_session,
+//                descRes = CommonStrings.confirm_your_identity,
+//        ) {
+//            // check first if it's not an outdated request?
+//            activeSessionHolder.getSafeActiveSession()?.let { session ->
+//                session.coroutineScope.launch {
+//                    if (!session.cryptoService().crossSigningService().isCrossSigningVerified()) {
+//                        withContext(Dispatchers.Main) {
+//                            it.navigator.requestSelfSessionVerification(it)
+//                        }
+//                    }
+//                }
+//            }
+//        }
     }
 
     private fun handleOnNewSession(event: HomeActivityViewEvents.CurrentSessionNotVerified) {
         // We need to ask
-        val titleRes = if (event.afterMigration) {
-            CommonStrings.crosssigning_verify_after_update
-        } else {
-            CommonStrings.crosssigning_verify_this_session
-        }
-        val descRes = if (event.afterMigration) {
-            CommonStrings.confirm_your_identity_after_update
-        } else {
-            CommonStrings.confirm_your_identity
-        }
-        promptSecurityEvent(
-                uid = PopupAlertManager.VERIFY_SESSION_UID,
-                userItem = event.userItem,
-                titleRes = titleRes,
-                descRes = descRes,
-        ) {
-            it.navigator.requestSelfSessionVerification(it)
-        }
+        event.hashCode()
+//        val titleRes = if (event.afterMigration) {
+//            CommonStrings.crosssigning_verify_after_update
+//        } else {
+//            CommonStrings.crosssigning_verify_this_session
+//        }
+//        val descRes = if (event.afterMigration) {
+//            CommonStrings.confirm_your_identity_after_update
+//        } else {
+//            CommonStrings.confirm_your_identity
+//        }
+//        promptSecurityEvent(
+//                uid = PopupAlertManager.VERIFY_SESSION_UID,
+//                userItem = event.userItem,
+//                titleRes = titleRes,
+//                descRes = descRes,
+//        ) {
+//            it.navigator.requestSelfSessionVerification(it)
+//        }
     }
 
     private fun handleCantVerify(event: HomeActivityViewEvents.CurrentSessionCannotBeVerified) {
         // We need to ask
-        promptSecurityEvent(
-                uid = PopupAlertManager.UPGRADE_SECURITY_UID,
-                userItem = event.userItem,
-                titleRes = CommonStrings.crosssigning_cannot_verify_this_session,
-                descRes = CommonStrings.crosssigning_cannot_verify_this_session_desc,
-        ) {
-            it.navigator.open4SSetup(it, SetupMode.PASSPHRASE_AND_NEEDED_SECRETS_RESET)
-        }
+        event.hashCode()
+//        promptSecurityEvent(
+//                uid = PopupAlertManager.UPGRADE_SECURITY_UID,
+//                userItem = event.userItem,
+//                titleRes = CommonStrings.crosssigning_cannot_verify_this_session,
+//                descRes = CommonStrings.crosssigning_cannot_verify_this_session_desc,
+//        ) {
+//            it.navigator.open4SSetup(it, SetupMode.PASSPHRASE_AND_NEEDED_SECRETS_RESET)
+//        }
     }
 
     private fun handlePromptToEnablePush() {
