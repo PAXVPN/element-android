@@ -66,6 +66,14 @@ import org.matrix.android.sdk.internal.session.sync.SyncResponsePostTreatmentAgg
 import timber.log.Timber
 import javax.inject.Inject
 import kotlin.system.measureTimeMillis
+import kotlinx.coroutines.runBlocking
+import org.matrix.android.sdk.internal.session.room.peeking.ResolveRoomStateTask
+import org.matrix.android.sdk.api.session.events.model.Event
+import org.matrix.android.sdk.api.session.room.RoomService
+import org.matrix.android.sdk.api.session.room.timeline.TimelineEvent
+import org.matrix.android.sdk.internal.database.mapper.TimelineEventMapper
+import org.matrix.android.sdk.internal.database.model.TimelineEventEntityFields
+import javax.inject.Provider
 
 internal class RoomSummaryUpdater @Inject constructor(
         @UserId private val userId: String,
@@ -75,6 +83,9 @@ internal class RoomSummaryUpdater @Inject constructor(
         private val homeServerCapabilitiesService: HomeServerCapabilitiesService,
         private val roomSummaryEventDecryptor: RoomSummaryEventDecryptor,
         private val roomSummaryEventsHelper: RoomSummaryEventsHelper,
+        private val resolveRoomStateTask: ResolveRoomStateTask,
+        private val roomServiceProvider: Provider<RoomService>,
+        private val timelineEventMapper: TimelineEventMapper
 ) {
 
     fun refreshLatestPreviewContent(realm: Realm, roomId: String) {
@@ -97,6 +108,8 @@ internal class RoomSummaryUpdater @Inject constructor(
             aggregator: SyncResponsePostTreatmentAggregator? = null
     ) {
         val roomSummaryEntity = RoomSummaryEntity.getOrCreate(realm, roomId)
+
+
         if (roomSummary != null) {
             if (roomSummary.heroes.isNotEmpty()) {
                 roomSummaryEntity.heroes.clear()
@@ -211,6 +224,7 @@ internal class RoomSummaryUpdater @Inject constructor(
         }
     }
 
+
     private fun TimelineEventEntity.attemptToDecrypt() {
         when (val root = this.root) {
             null -> {
@@ -232,10 +246,61 @@ internal class RoomSummaryUpdater @Inject constructor(
         roomSummaryEntity.latestPreviewableEvent = roomSummaryEventsHelper.getLatestPreviewableEvent(realm, roomId)
     }
 
-    /**
-     * Should be called at the end of the room sync, to check and validate all parent/child relations.
-     */
+    private fun cleanUpExpiredMessages(realm: Realm, roomId: String) {
+        val roomService = roomServiceProvider.get()
+        val sendService = roomService.getRoom(roomId)?.sendService()
+
+        Timber.v("## ROOM: Checking roomId  $roomId")
+
+        val eventEntities = realm.where(TimelineEventEntity::class.java)
+                .equalTo(TimelineEventEntityFields.ROOM_ID, roomId)
+                .findAll()
+
+        val retentionTime = getMaxLifetimeFromRoomStateTask(roomId)
+
+        val currentTime = System.currentTimeMillis()
+        val redactedEventIds = mutableSetOf<String>()
+
+        eventEntities.forEach { eventEntity ->
+            val event: TimelineEvent = timelineEventMapper.map(eventEntity)
+            val eventAge = currentTime - (event.root.originServerTs ?: 0L)
+
+            if (event.root.type == "m.room.redaction" && event.root.redacts != null) {
+                redactedEventIds.add(event.root.redacts)
+            }
+
+            val isEncrypted = event.root.type == "m.room.encrypted"
+            val isAlreadyRedacted = event.root.unsignedData?.redactedEvent != null
+
+            if (retentionTime > 0 && sendService != null) {
+                if (eventAge >= retentionTime && isEncrypted && !isAlreadyRedacted && !redactedEventIds.contains(event.root.eventId)) {
+                    sendService.redactEvent(event.root, "Expired due to retention policy.", null, null)
+                }
+            }
+        }
+    }
+
+    private fun getMaxLifetimeFromRoomStateTask(roomId: String): Long {
+        return runBlocking {
+            val stateEvents = resolveRoomStateTask.execute(ResolveRoomStateTask.Params(roomId))
+            val retentionEvent = stateEvents.find { it.type == "m.room.retention" }
+            (retentionEvent?.content?.get("max_lifetime") as? Number)?.toLong() ?: 0L
+        }
+    }
+
     fun validateSpaceRelationship(realm: Realm) {
+        val nonSpaceRooms = realm.where(RoomSummaryEntity::class.java)
+                .process(RoomSummaryEntityFields.MEMBERSHIP_STR, Membership.activeMemberships())
+                .notEqualTo(RoomSummaryEntityFields.ROOM_TYPE, RoomType.SPACE)
+                .not().beginsWith(RoomSummaryEntityFields.ROOM_ID, "!local.")
+                .findAll()
+
+        nonSpaceRooms.forEach { roomSummaryEntity ->
+            val roomId = roomSummaryEntity.roomId
+            Timber.v("## ROOM: Select roomId  $roomId")
+            cleanUpExpiredMessages(realm, roomId)
+        }
+
         measureTimeMillis {
             val lookupMap = realm.where(RoomSummaryEntity::class.java)
                     .process(RoomSummaryEntityFields.MEMBERSHIP_STR, Membership.activeMemberships())
