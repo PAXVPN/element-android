@@ -183,14 +183,6 @@ allprojects {
         config = files("$rootDir/tools/detekt/detekt.yml")
     }
 
-    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
-        kotlinOptions {
-            jvmTarget = "17" // Задайте нужную целевую версию, например 17
-            // Optionally, you might want to add:
-            // freeCompilerArgs += ["-Xjvm-default=all"] // For compatibility with default methods in interfaces
-        }
-    }
-
 }
 
 task clean(type: Delete) {
